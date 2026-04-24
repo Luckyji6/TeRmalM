@@ -76,7 +76,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Rename and re-upload release assets
-        if: always()
+        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
