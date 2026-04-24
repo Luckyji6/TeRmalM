@@ -83,52 +83,35 @@ jobs:
           TAG: ${{ github.ref_name }}
           LABEL: ${{ matrix.label }}
         run: |
-          # Get version number (strip leading 'v')
-          VERSION="${TAG#v}"
-
-          # Wait a moment for assets to be available
           sleep 5
-
-          # Define rename map: original pattern -> new name
-          # We download each asset that matches a pattern and re-upload with a clean name
-          declare -A RENAME_MAP
-
-          if [[ "$LABEL" == "mac-apple-silicon" ]]; then
-            RENAME_MAP=(
-              ["${VERSION}_aarch64.dmg"]="TeRmalM-mac-apple-silicon.dmg"
-              ["_aarch64.app.tar.gz"]="TeRmalM-mac-apple-silicon.app.tar.gz"
-            )
-          elif [[ "$LABEL" == "mac-intel" ]]; then
-            RENAME_MAP=(
-              ["${VERSION}_x64.dmg"]="TeRmalM-mac-intel.dmg"
-              ["_x64.app.tar.gz"]="TeRmalM-mac-intel.app.tar.gz"
-            )
-          elif [[ "$LABEL" == "linux-x64" ]]; then
-            RENAME_MAP=(
-              ["_amd64.deb"]="TeRmalM-linux-x64.deb"
-              ["_amd64.AppImage"]="TeRmalM-linux-x64.AppImage"
-              [".x86_64.rpm"]="TeRmalM-linux-x64.rpm"
-            )
-          elif [[ "$LABEL" == "windows-x64" ]]; then
-            RENAME_MAP=(
-              ["_x64-setup.exe"]="TeRmalM-windows-x64-setup.exe"
-              ["_x64_en-US.msi"]="TeRmalM-windows-x64.msi"
-            )
-          fi
-
-          # List current release assets and rename matching ones
+          mkdir -p /tmp/rename
           ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || echo "")
 
-          for ORIGINAL_PATTERN in "${!RENAME_MAP[@]}"; do
-            NEW_NAME="${RENAME_MAP[$ORIGINAL_PATTERN]}"
-            # Find matching asset name
-            MATCH=$(echo "$ASSETS" | grep -F "$ORIGINAL_PATTERN" | head -1)
-            if [[ -n "$MATCH" ]]; then
+          rename_asset() {
+            local PATTERN="$1"
+            local NEW_NAME="$2"
+            local MATCH
+            MATCH=$(echo "$ASSETS" | grep -F "$PATTERN" | head -1)
+            if [ -n "$MATCH" ]; then
               echo "Renaming: $MATCH -> $NEW_NAME"
               gh release download "$TAG" --pattern "$MATCH" --dir /tmp/rename/
               gh release upload "$TAG" "/tmp/rename/$MATCH#$NEW_NAME" --clobber
-              # Delete original (optional, keeps release clean)
               gh release delete-asset "$TAG" "$MATCH" --yes 2>/dev/null || true
               rm -f "/tmp/rename/$MATCH"
             fi
-          done
+          }
+
+          if [ "$LABEL" = "mac-apple-silicon" ]; then
+            rename_asset "_aarch64.dmg"          "TeRmalM-mac-apple-silicon.dmg"
+            rename_asset "_aarch64.app.tar.gz"   "TeRmalM-mac-apple-silicon.app.tar.gz"
+          elif [ "$LABEL" = "mac-intel" ]; then
+            rename_asset "_x64.dmg"              "TeRmalM-mac-intel.dmg"
+            rename_asset "_x64.app.tar.gz"       "TeRmalM-mac-intel.app.tar.gz"
+          elif [ "$LABEL" = "linux-x64" ]; then
+            rename_asset "_amd64.deb"            "TeRmalM-linux-x64.deb"
+            rename_asset "_amd64.AppImage"       "TeRmalM-linux-x64.AppImage"
+            rename_asset ".x86_64.rpm"           "TeRmalM-linux-x64.rpm"
+          elif [ "$LABEL" = "windows-x64" ]; then
+            rename_asset "_x64-setup.exe"        "TeRmalM-windows-x64-setup.exe"
+            rename_asset "_x64_en-US.msi"        "TeRmalM-windows-x64.msi"
+          fi
