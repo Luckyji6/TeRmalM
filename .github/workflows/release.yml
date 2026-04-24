@@ -95,9 +95,10 @@ jobs:
             if [ -n "$MATCH" ]; then
               echo "Renaming: $MATCH -> $NEW_NAME"
               gh release download "$TAG" --pattern "$MATCH" --dir /tmp/rename/
-              gh release upload "$TAG" "/tmp/rename/$MATCH#$NEW_NAME" --clobber
+              cp "/tmp/rename/$MATCH" "/tmp/rename/$NEW_NAME"
+              gh release upload "$TAG" "/tmp/rename/$NEW_NAME" --clobber
               gh release delete-asset "$TAG" "$MATCH" --yes 2>/dev/null || true
-              rm -f "/tmp/rename/$MATCH"
+              rm -f "/tmp/rename/$MATCH" "/tmp/rename/$NEW_NAME"
             fi
           }
 
