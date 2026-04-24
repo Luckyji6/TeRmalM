@@ -553,18 +553,15 @@ button:disabled {
 }
 
 .log-section {
-  min-height: 0;
-  flex: 1;
-  display: grid;
-  grid-template-rows: auto minmax(180px, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
 .log-view {
   margin: 0;
-  min-height: 0;
-  width: 100%;
-  overflow: auto;
+  height: 260px;
+  overflow-y: auto;
   border-radius: 6px;
   background: #101417;
   color: #d7dde2;

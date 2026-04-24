@@ -87,7 +87,7 @@ function App() {
       if (!response.ok) return
       const data = await response.json() as { tag_name: string }
       const latest = data.tag_name.replace(/^v/, '')
-      const current = __APP_VERSION__
+      const current = __APP_VERSION__.replace(/^v/, '')
       if (latest !== current) {
         setUpdateAvailable(data.tag_name)
       }
