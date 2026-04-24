@@ -48,6 +48,7 @@ function App() {
   const [running, setRunning] = useState<RunningState>({})
   const [selectedTaskId, setSelectedTaskId] = useState<string>()
   const [selectedLog, setSelectedLog] = useState('')
+  const logRef = useRef<HTMLPreElement | null>(null)
   const [form, setForm] = useState(initialForm)
   const [status, setStatus] = useState('Ready')
   const [tabs, setTabs] = useState<TerminalTab[]>([])
@@ -55,6 +56,7 @@ function App() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [isTerminalOpen, setIsTerminalOpen] = useState(false)
   const [revealedCommandId, setRevealedCommandId] = useState<string>()
+  const [updateAvailable, setUpdateAvailable] = useState<string>()
 
   const selectedTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId),
@@ -62,7 +64,14 @@ function App() {
   )
 
   useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight
+    }
+  }, [selectedLog])
+
+  useEffect(() => {
     void refresh()
+    void checkForUpdate()
   }, [])
 
   useEffect(() => {
@@ -71,6 +80,21 @@ function App() {
     }, 1800)
     return () => window.clearInterval(timer)
   })
+
+  async function checkForUpdate() {
+    try {
+      const response = await fetch('https://api.github.com/repos/Luckyji6/TeRmalM/releases/latest')
+      if (!response.ok) return
+      const data = await response.json() as { tag_name: string }
+      const latest = data.tag_name.replace(/^v/, '')
+      const current = __APP_VERSION__
+      if (latest !== current) {
+        setUpdateAvailable(data.tag_name)
+      }
+    } catch {
+      // silently ignore — no network or rate limit
+    }
+  }
 
   async function refresh() {
     try {
@@ -283,6 +307,16 @@ function App() {
             <Power size={16} />
             App autostart
           </button>
+          {updateAvailable && (
+            <a
+              className="update-badge"
+              href={`https://github.com/Luckyji6/TeRmalM/releases/tag/${updateAvailable}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Update available: {updateAvailable}
+            </a>
+          )}
           <span>{status}</span>
         </nav>
 
@@ -377,7 +411,7 @@ function App() {
               </div>
               <div className="log-section">
                 <div className="log-heading">Logs</div>
-                <pre className="log-view">{selectedLog || 'Start the selected task to stream logs here.'}</pre>
+                <pre className="log-view" ref={logRef}>{selectedLog || 'Start the selected task to stream logs here.'}</pre>
               </div>
             </section>
           )}
@@ -588,11 +622,8 @@ function maskCommandPreview(command: string) {
   const parts = command.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return ''
   if (parts.length === 1) return parts[0]
-  if (parts.length === 2) return `${parts[0]} ${'*'.repeat(Math.max(4, parts[1].length))}`
-
-  const middle = parts.slice(1, -1).join(' ')
-  const maskLength = Math.min(18, Math.max(8, middle.length))
-  return `${parts[0]} ${'*'.repeat(maskLength)} ${parts.at(-1)}`
+  const rest = parts.slice(1).join(' ')
+  return `${parts[0]} ${'*'.repeat(Math.max(4, rest.length))}`
 }
 
 export default App
