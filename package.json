@@ -1,7 +1,7 @@
 {
   "name": "termalm",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "GPL-3.0-only",
   "author": "Luckyji6 <lucky123456jx@qq.com>",

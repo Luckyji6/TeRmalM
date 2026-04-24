@@ -1,6 +1,6 @@
 [package]
 name = "termalm"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cross-platform terminal command manager"
 authors = ["Luckyji6 <lucky123456jx@qq.com>"]
 edition = "2021"
