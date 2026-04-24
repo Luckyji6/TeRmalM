@@ -1,0 +1,33 @@
+[package]
+name = "termalm"
+version = "0.1.0"
+description = "Cross-platform terminal command manager"
+authors = ["Luckyji6 <lucky123456jx@qq.com>"]
+edition = "2021"
+license = "GPL-3.0-only"
+repository = "https://github.com/Luckyji6/TeRmalM"
+
+[lib]
+name = "termalm_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "termalm"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+dirs = "6"
+portable-pty = "0.9"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2.5"
+tauri-plugin-shell = "2.3"
+tauri-plugin-sql = { version = "2.4", features = ["sqlite"] }
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
