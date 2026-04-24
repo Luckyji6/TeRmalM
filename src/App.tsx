@@ -515,25 +515,35 @@ function App() {
                 <X size={16} />
               </button>
             </header>
-            <div className="terminal-panel">
-              <div className="terminal-tabs">
-                {tabs.map((tab) => (
-                  <div key={tab.key} className={`terminal-tab ${activeTab === tab.key ? 'active' : ''}`}>
-                    <button type="button" className="terminal-tab-select" onClick={() => setActiveTab(tab.key)}>
-                      <Bot size={14} />
-                      {tab.title}
-                    </button>
-                    <button type="button" className="terminal-tab-close" aria-label={`Close ${tab.title}`} onClick={() => void closeTerminal(tab)}>
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-                <button type="button" className="icon-button" aria-label="Open local terminal" onClick={() => void openTerminal()}>
-                  <Plus size={14} />
-                </button>
+              <div className="terminal-panel">
+                <div className="terminal-tabs">
+                  {tabs.map((tab) => (
+                    <div key={tab.key} className={`terminal-tab ${activeTab === tab.key ? 'active' : ''}`}>
+                      <button type="button" className="terminal-tab-select" onClick={() => setActiveTab(tab.key)}>
+                        <Bot size={14} />
+                        {tab.title}
+                      </button>
+                      <button type="button" className="terminal-tab-close" aria-label={`Close ${tab.title}`} onClick={() => void closeTerminal(tab)}>
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" className="icon-button" aria-label="Open local terminal" onClick={() => void openTerminal()}>
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <div className="terminal-surfaces">
+                  {tabs.length === 0 && (
+                    <div className="terminal-empty">
+                      <SquareTerminal size={32} />
+                      <span>Open a local shell or SSH host to start a terminal session.</span>
+                    </div>
+                  )}
+                  {tabs.map((tab) => (
+                    <TerminalSurface key={tab.key} tab={tab} active={activeTab === tab.key} />
+                  ))}
+                </div>
               </div>
-              <TerminalSurface tab={tabs.find((tab) => tab.key === activeTab)} />
-            </div>
           </section>
         </div>
       )}
@@ -541,9 +551,9 @@ function App() {
   )
 }
 
-function TerminalSurface({ tab }: { tab?: TerminalTab }) {
+function TerminalSurface({ tab, active }: { tab: TerminalTab; active: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const terminalRef = useRef<Terminal | null>(null)
+  const fitRef = useRef<FitAddon | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -559,59 +569,62 @@ function TerminalSurface({ tab }: { tab?: TerminalTab }) {
       },
     })
     const fit = new FitAddon()
+    fitRef.current = fit
     terminal.loadAddon(fit)
     terminal.open(containerRef.current)
-    fit.fit()
-    terminalRef.current = terminal
-    const resize = () => fit.fit()
-    window.addEventListener('resize', resize)
-    return () => {
-      window.removeEventListener('resize', resize)
-      terminal.dispose()
-      terminalRef.current = null
-    }
-  }, [tab?.key])
+    requestAnimationFrame(() => fit.fit())
 
-  useEffect(() => {
-    const terminal = terminalRef.current
-    if (!terminal || !tab) return
-    terminal.reset()
+    const onResize = () => fit.fit()
+    window.addEventListener('resize', onResize)
+
     terminal.writeln(`Connected to ${tab.title}`)
+
+    let inputDisposable: ReturnType<typeof terminal.onData> | undefined
+    let timer: number | undefined
+
     if (!tab.backendId) {
       terminal.writeln('Starting session...')
-      return
-    }
-    const input = terminal.onData((data) => {
-      void api.ptyWrite(tab.backendId!, data)
-    })
-    const timer = window.setInterval(async () => {
-      const snapshot = await api.ptyRead(tab.backendId!).catch((error) => {
-        terminal.writeln(errorMessage(error))
-        return undefined
+    } else {
+      inputDisposable = terminal.onData((data) => {
+        void api.ptyWrite(tab.backendId!, data)
       })
-      if (!snapshot) return
-      if (snapshot.output) terminal.write(snapshot.output)
-      if (!snapshot.running) {
-        terminal.writeln('\r\nSession ended.')
-        window.clearInterval(timer)
-      }
-    }, 120)
-    return () => {
-      input.dispose()
-      window.clearInterval(timer)
+      timer = window.setInterval(async () => {
+        const snapshot = await api.ptyRead(tab.backendId!).catch((error) => {
+          terminal.writeln(errorMessage(error))
+          return undefined
+        })
+        if (!snapshot) return
+        if (snapshot.output) terminal.write(snapshot.output)
+        if (!snapshot.running) {
+          terminal.writeln('\r\nSession ended.')
+          window.clearInterval(timer)
+        }
+      }, 120)
     }
-  }, [tab])
 
-  if (!tab) {
-    return (
-      <div className="terminal-empty">
-        <SquareTerminal size={32} />
-        <span>Open a local shell or SSH host to start a terminal session.</span>
-      </div>
-    )
-  }
+    return () => {
+      window.removeEventListener('resize', onResize)
+      inputDisposable?.dispose()
+      window.clearInterval(timer)
+      terminal.dispose()
+      fitRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab.key, tab.backendId])
 
-  return <div className="terminal-surface" ref={containerRef} />
+  // Re-fit whenever this tab becomes the active one
+  useEffect(() => {
+    if (!active) return
+    requestAnimationFrame(() => fitRef.current?.fit())
+  }, [active])
+
+  return (
+    <div
+      className="terminal-surface"
+      ref={containerRef}
+      style={{ display: active ? 'block' : 'none' }}
+    />
+  )
 }
 
 function errorMessage(error: unknown) {
