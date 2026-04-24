@@ -1,71 +1,47 @@
 # TeRmalM
 
-TeRmalM is a cross-platform desktop app for managing local and SSH-backed terminal commands.
+[中文](./README.zh.md)
 
-## Stack
+A desktop app for managing terminal command tasks — run them locally or over SSH, keep them running in the background, and check in whenever you want.
 
-- React + TypeScript + Vite for the UI
-- Tauri 2 for the desktop shell
-- Rust commands for process, PTY, SSH config, and local autostart integration
-- SQLite for local task storage
-- GitHub Actions for Win/macOS/Linux bundles
+## Features
 
-## Current MVP
+- **Local & SSH tasks** — run commands on your machine or on a remote server via SSH
+- **Background execution** — tasks keep running after you close the terminal tab; come back to check status and logs anytime
+- **Interactive terminal** — open a live terminal tab for any task, local or remote
+- **SSH config aware** — reads host aliases directly from `~/.ssh/config`; no credential storage
+- **Autostart** — register tasks to launch automatically on system boot
 
-- Create local or SSH command tasks.
-- Persist tasks in SQLite under the Tauri app data directory.
-- Read SSH host aliases from `~/.ssh/config`.
-- Start, stop, poll status, and read logs for background tasks.
-- Open xterm-powered local or SSH interactive terminal tabs.
-- Generate local system autostart entries for command tasks:
-  - macOS: `~/Library/LaunchAgents`
-  - Linux: `~/.config/systemd/user`
-  - Windows: `schtasks`
+## Download
 
-Remote system-level autostart is intentionally out of scope for the first MVP. SSH credentials are not stored by TeRmalM; authentication stays in the user's OpenSSH config, agent, and keychain setup.
+Go to [Releases](../../releases) and pick the file for your platform:
+
+| Platform | File |
+|---|---|
+| Windows | `TeRmalM-windows-x64-setup.exe` or `TeRmalM-windows-x64.msi` |
+| macOS Apple Silicon (M1/M2/M3/M4) | `TeRmalM-mac-apple-silicon.dmg` |
+| macOS Intel | `TeRmalM-mac-intel.dmg` |
+| Linux | `TeRmalM-linux-x64.deb` / `.rpm` / `.AppImage` |
 
 ## Development
 
-Install Node.js and the Rust toolchain first. On macOS/Linux, the usual Rust install path is:
-
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-Install dependencies:
+Prerequisites: [Node.js](https://nodejs.org) and the [Rust toolchain](https://rustup.rs).
 
 ```sh
 npm install
-```
 
-Run the browser preview:
-
-```sh
+# Browser preview (mock APIs)
 npm run dev
-```
 
-Run the Tauri desktop app:
-
-```sh
+# Tauri desktop app
 npm run tauri:dev
-```
 
-Build the frontend:
-
-```sh
-npm run build
-```
-
-Build desktop bundles:
-
-```sh
+# Build installers
 npm run tauri:build
 ```
 
-## Notes
-
-The browser preview uses mock process and terminal APIs. Real process execution, PTY sessions, SQLite storage, SSH config parsing, and autostart generation run only inside Tauri.
+> Process execution, PTY sessions, SQLite storage, SSH config parsing, and autostart only work inside the Tauri desktop app. The browser preview uses mock APIs.
 
 ## License
 
-TeRmalM is licensed under the GNU General Public License v3.0 only. See [LICENSE](./LICENSE).
+GNU General Public License v3.0 — see [LICENSE](./LICENSE).

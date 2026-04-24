@@ -16,35 +16,119 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: ''
+            target: aarch64-apple-darwin
+            label: mac-apple-silicon
+            args: --target aarch64-apple-darwin
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            label: mac-intel
+            args: --target x86_64-apple-darwin
           - platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            label: linux-x64
             args: ''
           - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: windows-x64
             args: ''
 
     runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-24.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
       - run: npm ci
       - run: npm run build
+
       - uses: tauri-apps/tauri-action@v0
+        id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'TeRmalM ${{ github.ref_name }}'
-          releaseBody: 'Cross-platform TeRmalM desktop builds for Windows, macOS, and Linux.'
+          releaseBody: |
+            ## Download
+
+            | Platform | File |
+            |---|---|
+            | Windows (x64) | `TeRmalM-windows-x64-setup.exe` or `.msi` |
+            | macOS Apple Silicon (M1/M2/M3/M4) | `TeRmalM-mac-apple-silicon.dmg` |
+            | macOS Intel | `TeRmalM-mac-intel.dmg` |
+            | Linux (x64) | `TeRmalM-linux-x64.deb` / `.rpm` / `.AppImage` |
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Rename and re-upload release assets
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          LABEL: ${{ matrix.label }}
+        run: |
+          # Get version number (strip leading 'v')
+          VERSION="${TAG#v}"
+
+          # Wait a moment for assets to be available
+          sleep 5
+
+          # Define rename map: original pattern -> new name
+          # We download each asset that matches a pattern and re-upload with a clean name
+          declare -A RENAME_MAP
+
+          if [[ "$LABEL" == "mac-apple-silicon" ]]; then
+            RENAME_MAP=(
+              ["${VERSION}_aarch64.dmg"]="TeRmalM-mac-apple-silicon.dmg"
+              ["_aarch64.app.tar.gz"]="TeRmalM-mac-apple-silicon.app.tar.gz"
+            )
+          elif [[ "$LABEL" == "mac-intel" ]]; then
+            RENAME_MAP=(
+              ["${VERSION}_x64.dmg"]="TeRmalM-mac-intel.dmg"
+              ["_x64.app.tar.gz"]="TeRmalM-mac-intel.app.tar.gz"
+            )
+          elif [[ "$LABEL" == "linux-x64" ]]; then
+            RENAME_MAP=(
+              ["_amd64.deb"]="TeRmalM-linux-x64.deb"
+              ["_amd64.AppImage"]="TeRmalM-linux-x64.AppImage"
+              [".x86_64.rpm"]="TeRmalM-linux-x64.rpm"
+            )
+          elif [[ "$LABEL" == "windows-x64" ]]; then
+            RENAME_MAP=(
+              ["_x64-setup.exe"]="TeRmalM-windows-x64-setup.exe"
+              ["_x64_en-US.msi"]="TeRmalM-windows-x64.msi"
+            )
+          fi
+
+          # List current release assets and rename matching ones
+          ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || echo "")
+
+          for ORIGINAL_PATTERN in "${!RENAME_MAP[@]}"; do
+            NEW_NAME="${RENAME_MAP[$ORIGINAL_PATTERN]}"
+            # Find matching asset name
+            MATCH=$(echo "$ASSETS" | grep -F "$ORIGINAL_PATTERN" | head -1)
+            if [[ -n "$MATCH" ]]; then
+              echo "Renaming: $MATCH -> $NEW_NAME"
+              gh release download "$TAG" --pattern "$MATCH" --dir /tmp/rename/
+              gh release upload "$TAG" "/tmp/rename/$MATCH#$NEW_NAME" --clobber
+              # Delete original (optional, keeps release clean)
+              gh release delete-asset "$TAG" "$MATCH" --yes 2>/dev/null || true
+              rm -f "/tmp/rename/$MATCH"
+            fi
+          done
