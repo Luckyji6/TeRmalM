@@ -23,6 +23,14 @@
 | macOS Intel | `TeRmalM-mac-intel.dmg` |
 | Linux | `TeRmalM-linux-x64.deb` / `.rpm` / `.AppImage` |
 
+### macOS 提示
+
+由于应用未经 Apple 公证，macOS 可能会提示"已损坏"。安装后在终端执行以下命令即可正常打开：
+
+```sh
+xattr -cr /Applications/TeRmalM.app
+```
+
 ## 开发
 
 依赖：[Node.js](https://nodejs.org) 和 [Rust 工具链](https://rustup.rs)。

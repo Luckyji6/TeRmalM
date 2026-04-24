@@ -23,6 +23,14 @@ Go to [Releases](../../releases) and pick the file for your platform:
 | macOS Intel | `TeRmalM-mac-intel.dmg` |
 | Linux | `TeRmalM-linux-x64.deb` / `.rpm` / `.AppImage` |
 
+### macOS note
+
+macOS may show a "damaged" warning because the app is not notarized. To bypass it, run in Terminal after installing:
+
+```sh
+xattr -cr /Applications/TeRmalM.app
+```
+
 ## Development
 
 Prerequisites: [Node.js](https://nodejs.org) and the [Rust toolchain](https://rustup.rs).
